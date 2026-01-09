@@ -23,6 +23,85 @@ class MarksEntryController
             redirect('index.php?page=marks_entry&step=2&grade_id=' . $gradeId . '&subject_id=' . $subjectId . '&exam_id=' . $examId . '&academic_year=' . $academicYear);
         }
 
+        if ($step === 'download_template') {
+            $gradeId = (int)($_GET['grade_id'] ?? 0);
+            $subjectId = (int)($_GET['subject_id'] ?? 0);
+            $examId = (int)($_GET['exam_id'] ?? 0);
+            if ($gradeId <= 0 || $subjectId <= 0 || $examId <= 0) {
+                set_flash('danger', 'Invalid marks context.');
+                redirect('index.php?page=marks_entry');
+            }
+
+            $students = query_all($db, 'SELECT student_id, name FROM students WHERE grade_id = ? ORDER BY name', 'i', [$gradeId]);
+            $filename = 'marks_template_grade_' . $gradeId . '_subject_' . $subjectId . '_exam_' . $examId . '_' . $academicYear . '.csv';
+
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            $output = fopen('php://output', 'w');
+            fputcsv($output, ['student_id', 'student_name', 'marks']);
+            foreach ($students as $student) {
+                fputcsv($output, [$student['student_id'], $student['name'], '']);
+            }
+            fclose($output);
+            return;
+        }
+
+        if ($step === 'import' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $gradeId = (int)($_POST['grade_id'] ?? 0);
+            $subjectId = (int)($_POST['subject_id'] ?? 0);
+            $examId = (int)($_POST['exam_id'] ?? 0);
+            if ($gradeId <= 0 || $subjectId <= 0 || $examId <= 0) {
+                set_flash('danger', 'Invalid marks context.');
+                redirect('index.php?page=marks_entry');
+            }
+
+            if (empty($_FILES['marks_file']['tmp_name']) || !is_uploaded_file($_FILES['marks_file']['tmp_name'])) {
+                set_flash('danger', 'Please upload a CSV file.');
+                redirect('index.php?page=marks_entry&step=2&grade_id=' . $gradeId . '&subject_id=' . $subjectId . '&exam_id=' . $examId . '&academic_year=' . $academicYear);
+            }
+
+            $students = query_all($db, 'SELECT student_id FROM students WHERE grade_id = ?', 'i', [$gradeId]);
+            $allowedStudents = [];
+            foreach ($students as $student) {
+                $allowedStudents[(int)$student['student_id']] = true;
+            }
+
+            $handle = fopen($_FILES['marks_file']['tmp_name'], 'r');
+            $header = fgetcsv($handle);
+            $columnIndex = ['student_id' => 0, 'marks' => 2];
+            if ($header) {
+                $lowerHeader = array_map('strtolower', $header);
+                if (in_array('student_id', $lowerHeader, true) && in_array('marks', $lowerHeader, true)) {
+                    $columnIndex['student_id'] = array_search('student_id', $lowerHeader, true);
+                    $columnIndex['marks'] = array_search('marks', $lowerHeader, true);
+                } else {
+                    rewind($handle);
+                }
+            }
+
+            $stmt = $db->prepare('INSERT INTO marks (student_id, subject_id, exam_id, marks) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE marks = VALUES(marks)');
+            $imported = 0;
+            while (($row = fgetcsv($handle)) !== false) {
+                $studentId = (int)($row[$columnIndex['student_id']] ?? 0);
+                $markValue = $row[$columnIndex['marks']] ?? null;
+                $markValue = is_numeric($markValue) ? (float)$markValue : null;
+                if ($studentId <= 0 || $markValue === null || $markValue < 0 || $markValue > TOTAL_MARKS) {
+                    continue;
+                }
+                if (!isset($allowedStudents[$studentId])) {
+                    continue;
+                }
+                $stmt->bind_param('iiid', $studentId, $subjectId, $examId, $markValue);
+                $stmt->execute();
+                $imported++;
+            }
+            fclose($handle);
+            $stmt->close();
+
+            set_flash('success', 'Imported ' . $imported . ' marks from CSV.');
+            redirect('index.php?page=marks_entry&step=2&grade_id=' . $gradeId . '&subject_id=' . $subjectId . '&exam_id=' . $examId . '&academic_year=' . $academicYear);
+        }
+
         if ($step === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $gradeId = (int)($_POST['grade_id'] ?? 0);
             $subjectId = (int)($_POST['subject_id'] ?? 0);
