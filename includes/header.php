@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/functions.php';
 
-$selectedYear = $_GET['academic_year'] ?? DEFAULT_ACADEMIC_YEAR;
+$selectedYear = current_academic_year();
 ?>
 <!doctype html>
 <html lang="en">

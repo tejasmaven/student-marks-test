@@ -20,7 +20,7 @@
 
 <?php if ($student): ?>
     <div class="card shadow-sm">
-        <div class="card-header bg-white">Report Card: <?php echo e($student['name']); ?></div>
+        <div class="card-header bg-white">Report Card (Year <?php echo e((string)$academicYear); ?>): <?php echo e($student['name']); ?></div>
         <div class="card-body">
             <table class="table table-bordered">
                 <thead>

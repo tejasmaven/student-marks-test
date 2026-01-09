@@ -4,7 +4,7 @@
             <input type="hidden" name="page" value="reports_subject_performance">
             <div class="col-md-3">
                 <label class="form-label">Grade</label>
-                <select name="grade_id" class="form-select" required onchange="window.location='index.php?page=reports_subject_performance&grade_id=' + this.value">
+                <select name="grade_id" class="form-select" required onchange="window.location='index.php?page=reports_subject_performance&grade_id=' + this.value + '&academic_year=<?php echo e((string)$academicYear); ?>'">
                     <option value="">Select grade</option>
                     <?php foreach ($grades as $grade): ?>
                         <option value="<?php echo e((string)$grade['grade_id']); ?>" <?php echo $gradeId === (int)$grade['grade_id'] ? 'selected' : ''; ?>>Grade <?php echo e((string)$grade['grade_id']); ?></option>
@@ -29,7 +29,7 @@
 
 <?php if ($gradeId && $subjectId): ?>
     <div class="card shadow-sm mb-3">
-        <div class="card-header bg-white">Distribution Buckets</div>
+        <div class="card-header bg-white">Distribution Buckets (Year <?php echo e((string)$academicYear); ?>)</div>
         <div class="card-body">
             <table class="table table-bordered">
                 <thead>
@@ -61,7 +61,7 @@
     </div>
 
     <div class="card shadow-sm">
-        <div class="card-header bg-white">Average Trend</div>
+        <div class="card-header bg-white">Average Trend (Year <?php echo e((string)$academicYear); ?>)</div>
         <div class="card-body">
             <table class="table table-striped">
                 <thead>

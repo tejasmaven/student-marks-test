@@ -5,7 +5,7 @@ class ReportsController
     public function handle(string $page): void
     {
         $db = db();
-        $academicYear = (int)($_GET['academic_year'] ?? DEFAULT_ACADEMIC_YEAR);
+        $academicYear = current_academic_year();
 
         if ($page === 'reports_student') {
             $students = query_all($db, 'SELECT student_id, name, grade_id FROM students ORDER BY name');

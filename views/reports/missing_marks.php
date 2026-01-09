@@ -19,7 +19,7 @@
 </div>
 
 <div class="card shadow-sm">
-    <div class="card-header bg-white">Missing Marks (Total Missing: <?php echo e((string)$missingTotal); ?>)</div>
+    <div class="card-header bg-white">Missing Marks (Year <?php echo e((string)$academicYear); ?>, Total Missing: <?php echo e((string)$missingTotal); ?>)</div>
     <div class="card-body">
         <table class="table table-striped">
             <thead>

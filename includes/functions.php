@@ -9,6 +9,21 @@ function e(string $value): string
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 }
 
+function current_academic_year(): int
+{
+    $year = isset($_GET['academic_year']) ? (int)$_GET['academic_year'] : null;
+    if ($year) {
+        $_SESSION['academic_year'] = $year;
+        return $year;
+    }
+
+    if (!empty($_SESSION['academic_year'])) {
+        return (int)$_SESSION['academic_year'];
+    }
+
+    return DEFAULT_ACADEMIC_YEAR;
+}
+
 function redirect(string $url): void
 {
     header('Location: ' . $url);

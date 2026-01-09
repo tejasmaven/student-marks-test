@@ -5,7 +5,7 @@ class DashboardController
     public function handle(string $page): void
     {
         $db = db();
-        $academicYear = (int)($_GET['academic_year'] ?? DEFAULT_ACADEMIC_YEAR);
+        $academicYear = current_academic_year();
 
         $stats = [];
         $stats['students'] = (int)($db->query('SELECT COUNT(*) AS cnt FROM students')->fetch_assoc()['cnt'] ?? 0);
@@ -17,8 +17,7 @@ class DashboardController
             "SELECT SUM(CASE WHEN m.marks >= ? THEN 1 ELSE 0 END) AS pass_count,
                     SUM(CASE WHEN m.marks < ? THEN 1 ELSE 0 END) AS fail_count
              FROM marks m
-             JOIN exams e ON m.exam_id = e.exam_id
-             WHERE e.academic_year = ?",
+             WHERE m.academic_year = ?",
             'iii',
             [PASSING_MARK, PASSING_MARK, $academicYear]
         );
@@ -39,8 +38,7 @@ class DashboardController
             $db,
             "SELECT COUNT(*) AS actual
              FROM marks m
-             JOIN exams e ON m.exam_id = e.exam_id
-             WHERE e.academic_year = ?",
+             WHERE m.academic_year = ?",
             'i',
             [$academicYear]
         );
@@ -53,8 +51,7 @@ class DashboardController
                     SUM(CASE WHEN m.marks < ? THEN 1 ELSE 0 END) AS fail_count
              FROM grades g
              LEFT JOIN students s ON s.grade_id = g.grade_id
-             LEFT JOIN marks m ON m.student_id = s.student_id
-             LEFT JOIN exams e ON m.exam_id = e.exam_id AND e.academic_year = ?
+             LEFT JOIN marks m ON m.student_id = s.student_id AND m.academic_year = ?
              GROUP BY g.grade_id
              ORDER BY g.grade_id",
             'iii',
