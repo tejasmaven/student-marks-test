@@ -24,7 +24,7 @@ class ReportsController
                 );
                 $marksRows = query_all(
                     $db,
-                    'SELECT m.subject_id, e.exam_no, m.marks FROM marks m JOIN exams e ON m.exam_id = e.exam_id WHERE m.student_id = ? AND e.academic_year = ?',
+                    'SELECT subject_id, exam_no, marks FROM v_student_marks WHERE student_id = ? AND academic_year = ?',
                     'ii',
                     [$studentId, $academicYear]
                 );
@@ -54,28 +54,19 @@ class ReportsController
                 );
                 $summaryRows = query_all(
                     $db,
-                    'SELECT s.subject_id, e.exam_no,
-                            AVG(m.marks) AS avg_mark,
-                            SUM(CASE WHEN m.marks >= ? THEN 1 ELSE 0 END) AS pass_count,
-                            SUM(CASE WHEN m.marks < ? THEN 1 ELSE 0 END) AS fail_count
-                     FROM students st
-                     JOIN marks m ON st.student_id = m.student_id
-                     JOIN exams e ON m.exam_id = e.exam_id
-                     JOIN subjects s ON m.subject_id = s.subject_id
-                     WHERE st.grade_id = ? AND e.academic_year = ?
-                     GROUP BY s.subject_id, e.exam_no',
-                    'iiii',
-                    [PASSING_MARK, PASSING_MARK, $gradeId, $academicYear]
+                    'SELECT subject_id, exam_no, avg_mark, pass_count, fail_count
+                     FROM v_grade_summary
+                     WHERE grade_id = ? AND academic_year = ?
+                     ORDER BY subject_id, exam_no',
+                    'ii',
+                    [$gradeId, $academicYear]
                 );
 
                 $topStudents = query_all(
                     $db,
-                    'SELECT st.student_id, st.name, AVG(m.marks) AS avg_mark
-                     FROM students st
-                     JOIN marks m ON st.student_id = m.student_id
-                     JOIN exams e ON m.exam_id = e.exam_id
-                     WHERE st.grade_id = ? AND e.academic_year = ?
-                     GROUP BY st.student_id, st.name
+                    'SELECT student_id, name, avg_mark
+                     FROM v_grade_student_averages
+                     WHERE grade_id = ? AND academic_year = ?
                      ORDER BY avg_mark DESC
                      LIMIT 5',
                     'ii',
@@ -107,11 +98,10 @@ class ReportsController
             if ($gradeId && $subjectId) {
                 $rows = query_all(
                     $db,
-                    'SELECT e.exam_no, m.marks FROM marks m
-                     JOIN exams e ON m.exam_id = e.exam_id
-                     JOIN students st ON m.student_id = st.student_id
-                     WHERE st.grade_id = ? AND m.subject_id = ? AND e.academic_year = ?
-                     ORDER BY e.exam_no',
+                    'SELECT exam_no, marks
+                     FROM v_subject_performance_marks
+                     WHERE grade_id = ? AND subject_id = ? AND academic_year = ?
+                     ORDER BY exam_no',
                     'iii',
                     [$gradeId, $subjectId, $academicYear]
                 );
@@ -159,36 +149,29 @@ class ReportsController
 
             $missingRows = query_all(
                 $db,
-                'SELECT st.student_id, st.name, st.grade_id, s.subject_id, s.name AS subject_name, e.exam_no
-                 FROM students st
-                 JOIN grade_subjects gs ON st.grade_id = gs.grade_id
-                 JOIN subjects s ON gs.subject_id = s.subject_id
-                 JOIN exams e ON e.academic_year = ?
-                 LEFT JOIN marks m ON m.student_id = st.student_id AND m.subject_id = s.subject_id AND m.exam_id = e.exam_id
-                 WHERE m.mark_id IS NULL' . ($gradeId ? ' AND st.grade_id = ?' : '') . '
-                 ORDER BY st.grade_id, st.name, s.name, e.exam_no',
+                'SELECT student_id, student_name AS name, grade_id, subject_id, subject_name, exam_no
+                 FROM v_missing_marks
+                 WHERE academic_year = ?' . ($gradeId ? ' AND grade_id = ?' : '') . '
+                 ORDER BY grade_id, student_name, subject_name, exam_no',
                 $gradeId ? 'ii' : 'i',
                 $gradeId ? [$academicYear, $gradeId] : [$academicYear]
             );
 
             $expectedRow = query_one(
                 $db,
-                'SELECT SUM(student_count * subject_count * 4) AS expected
-                 FROM (
-                    SELECT g.grade_id,
-                           (SELECT COUNT(*) FROM students s WHERE s.grade_id = g.grade_id) AS student_count,
-                           (SELECT COUNT(*) FROM grade_subjects gs WHERE gs.grade_id = g.grade_id) AS subject_count
-                    FROM grades g
-                 ) AS t'
+                'SELECT ' . ($gradeId ? 'expected_count AS expected' : 'SUM(expected_count) AS expected') . '
+                 FROM v_expected_marks
+                 WHERE academic_year = ?' . ($gradeId ? ' AND grade_id = ?' : ''),
+                $gradeId ? 'ii' : 'i',
+                $gradeId ? [$academicYear, $gradeId] : [$academicYear]
             );
             $expected = (int)($expectedRow['expected'] ?? 0);
 
             $actualRow = query_one(
                 $db,
-                'SELECT COUNT(*) AS actual
-                 FROM marks m
-                 JOIN exams e ON m.exam_id = e.exam_id
-                 WHERE e.academic_year = ?' . ($gradeId ? ' AND m.student_id IN (SELECT student_id FROM students WHERE grade_id = ?)' : ''),
+                'SELECT ' . ($gradeId ? 'actual_count AS actual' : 'SUM(actual_count) AS actual') . '
+                 FROM v_actual_marks
+                 WHERE academic_year = ?' . ($gradeId ? ' AND grade_id = ?' : ''),
                 $gradeId ? 'ii' : 'i',
                 $gradeId ? [$academicYear, $gradeId] : [$academicYear]
             );
