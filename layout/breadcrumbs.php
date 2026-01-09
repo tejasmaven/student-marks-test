@@ -14,6 +14,10 @@ $breadcrumbMap = [
 ];
 $current = $_GET['page'] ?? 'dashboard';
 $title = $breadcrumbMap[$current] ?? 'Dashboard';
+$academicYear = current_academic_year();
+if (str_starts_with($current, 'reports_')) {
+    $title .= ' (Year ' . $academicYear . ')';
+}
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>

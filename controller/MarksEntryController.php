@@ -6,7 +6,7 @@ class MarksEntryController
     {
         $db = db();
         $step = $_GET['step'] ?? '1';
-        $academicYear = (int)($_GET['academic_year'] ?? DEFAULT_ACADEMIC_YEAR);
+        $academicYear = current_academic_year();
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             validate_csrf();
@@ -79,7 +79,7 @@ class MarksEntryController
                 }
             }
 
-            $stmt = $db->prepare('INSERT INTO marks (student_id, subject_id, exam_id, marks) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE marks = VALUES(marks)');
+            $stmt = $db->prepare('INSERT INTO marks (student_id, subject_id, exam_id, academic_year, marks) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE marks = VALUES(marks)');
             $imported = 0;
             while (($row = fgetcsv($handle)) !== false) {
                 $studentId = (int)($row[$columnIndex['student_id']] ?? 0);
@@ -91,7 +91,7 @@ class MarksEntryController
                 if (!isset($allowedStudents[$studentId])) {
                     continue;
                 }
-                $stmt->bind_param('iiid', $studentId, $subjectId, $examId, $markValue);
+                $stmt->bind_param('iiiid', $studentId, $subjectId, $examId, $academicYear, $markValue);
                 $stmt->execute();
                 $imported++;
             }
@@ -113,14 +113,14 @@ class MarksEntryController
                 redirect('index.php?page=marks_entry');
             }
 
-            $stmt = $db->prepare('INSERT INTO marks (student_id, subject_id, exam_id, marks) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE marks = VALUES(marks)');
+            $stmt = $db->prepare('INSERT INTO marks (student_id, subject_id, exam_id, academic_year, marks) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE marks = VALUES(marks)');
             foreach ($marksData as $studentId => $markValue) {
                 $studentId = (int)$studentId;
                 $markValue = is_numeric($markValue) ? (float)$markValue : null;
                 if ($studentId <= 0 || $markValue === null || $markValue < 0 || $markValue > TOTAL_MARKS) {
                     continue;
                 }
-                $stmt->bind_param('iiid', $studentId, $subjectId, $examId, $markValue);
+                $stmt->bind_param('iiiid', $studentId, $subjectId, $examId, $academicYear, $markValue);
                 $stmt->execute();
             }
             $stmt->close();
@@ -143,9 +143,9 @@ class MarksEntryController
 
             $marks = query_all(
                 $db,
-                'SELECT student_id, marks FROM marks WHERE subject_id = ? AND exam_id = ?',
-                'ii',
-                [$subjectId, $examId]
+                'SELECT student_id, marks FROM marks WHERE subject_id = ? AND exam_id = ? AND academic_year = ?',
+                'iii',
+                [$subjectId, $examId, $academicYear]
             );
             $marksMap = [];
             foreach ($marks as $markRow) {
@@ -168,17 +168,17 @@ class MarksEntryController
                         SUM(CASE WHEN marks < ? THEN 1 ELSE 0 END) AS fail_count,
                         AVG(marks) AS avg_mark
                  FROM marks
-                 WHERE subject_id = ? AND exam_id = ?',
-                'iiii',
-                [PASSING_MARK, PASSING_MARK, $subjectId, $examId]
+                 WHERE subject_id = ? AND exam_id = ? AND academic_year = ?',
+                'iiiii',
+                [PASSING_MARK, PASSING_MARK, $subjectId, $examId, $academicYear]
             );
 
             $studentCount = query_one($db, 'SELECT COUNT(*) AS cnt FROM students WHERE grade_id = ?', 'i', [$gradeId]);
             $enteredCount = query_one(
                 $db,
-                'SELECT COUNT(*) AS cnt FROM marks m JOIN students s ON m.student_id = s.student_id WHERE s.grade_id = ? AND m.subject_id = ? AND m.exam_id = ?',
-                'iii',
-                [$gradeId, $subjectId, $examId]
+                'SELECT COUNT(*) AS cnt FROM marks m JOIN students s ON m.student_id = s.student_id WHERE s.grade_id = ? AND m.subject_id = ? AND m.exam_id = ? AND m.academic_year = ?',
+                'iiii',
+                [$gradeId, $subjectId, $examId, $academicYear]
             );
             $missing = max(0, (int)($studentCount['cnt'] ?? 0) - (int)($enteredCount['cnt'] ?? 0));
 

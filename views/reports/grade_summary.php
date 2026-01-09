@@ -26,7 +26,7 @@
     }
     ?>
     <div class="card shadow-sm mb-3">
-        <div class="card-header bg-white">Grade <?php echo e((string)$gradeId); ?> Summary</div>
+        <div class="card-header bg-white">Grade <?php echo e((string)$gradeId); ?> Summary (Year <?php echo e((string)$academicYear); ?>)</div>
         <div class="card-body">
             <table class="table table-bordered">
                 <thead>
@@ -58,7 +58,7 @@
     </div>
 
     <div class="card shadow-sm">
-        <div class="card-header bg-white">Top 5 Students (Overall Average)</div>
+        <div class="card-header bg-white">Top 5 Students (Overall Average, Year <?php echo e((string)$academicYear); ?>)</div>
         <div class="card-body">
             <table class="table table-striped">
                 <thead>

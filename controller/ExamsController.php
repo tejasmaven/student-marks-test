@@ -6,7 +6,7 @@ class ExamsController
     {
         $db = db();
         $action = $_GET['action'] ?? 'list';
-        $academicYear = (int)($_GET['academic_year'] ?? DEFAULT_ACADEMIC_YEAR);
+        $academicYear = current_academic_year();
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             validate_csrf();
